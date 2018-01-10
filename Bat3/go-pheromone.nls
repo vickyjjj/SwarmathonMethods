@@ -1,0 +1,244 @@
+to go-pheromone
+
+   ;;run the program until all rocks are collected
+   while [ numberOfRocks > 0 ]
+   [
+     ;;1) When a robot finds multiple rocks at a site, it will lay a pheromone trail
+     ;;so other robots can find that location. In our simulation, the pheromone trail is
+     ;;colored cyan. The trail doesn't last forever, though, so on each tick, we'll decrease
+     ;;the amount of pheromone on the patch by one until the trail evaporates.
+
+     ;;ask the patches with cyan color
+     ask patches with [ pcolor = cyan ]
+     [
+       ;;decrease pheromoneCounter by 1
+       set pheromoneCounter pheromoneCounter - 1
+       ;;if pheromoneCounter is 0, turn the patch red.
+       if pheromoneCounter = 0[ set pcolor base-pcolor ]
+     ]
+
+     ;;We have four modes for the robots in this simulation.
+     ask turtles
+     [
+       ifelse pen-down?
+       [ pendown ]
+       [ penup ]
+
+       ;;1)if a robot is searching? it should look-for-rocks
+       if searching?
+       [look-for-rocks]
+
+       ;;2)if a robot is returning? it should return-to-base
+       if returning?
+       [return-to-base]
+
+       ;;3) if a robot is usingSiteFidelity? and not returning? it should go-back-to-rocks
+       if usingSiteFidelity? and not returning?
+       [go-back-to-rocks]
+
+       ;;4) if a robot is usingPheromone? it should follow-the-trail
+       if usingPheromone?
+       [follow-the-trail]
+
+       ;;make the robots move and avoid the world's edge
+       ;;if [pcolor] of patch-ahead 1 = black
+       ;;[ set heading (heading + 180) ]
+
+       wiggle
+
+     ]
+     ;;advance the clock
+     tick
+   ]
+
+ end
+
+ ;------------------------------------------------------------------------------------
+ ;;;;;;;;;;;;;;;;;;;;
+ ;;    wiggle      ;;
+ ;;;;;;;;;;;;;;;;;;;;
+
+ to wiggle
+
+   ;;shift right 0 - 40 degrees
+   right random 20
+
+   ;;shift left 0 - 40 degrees
+   left random 20
+
+   ;;go forward one patch
+   forward 1
+
+ end
+
+  ;------------------------------------------------------------------------------------
+ ;;;;;;;;;;;;;;;;;;;;
+ ;; look-for-rocks ;;
+ ;;;;;;;;;;;;;;;;;;;;
+
+ to look-for-rocks
+
+   ;;reset label
+   set label ""
+
+     ;;1)We can pick up any rock in an adjacent patch.
+     if[pcolor] of one-of neighbors = yellow
+       [
+         ;;2)then pick up the rock (reduce the numberOfRocks by 1),
+         ;;change the agent model to the robot holding the rock, and reset the patch to red
+         set numberOfRocks (numberOfRocks - 1)
+         set shape "robot with rock"
+         ask one-of neighbors with [pcolor = yellow]
+         [set pcolor base-pcolor]
+
+         ;;3)Turn search mode off, and return mode on.
+         set searching? false
+         set returning? true
+
+         ;;Robots use site fidelity if there's 2 or more rocks remaining. This is efficient.
+         ;;It's usually quicker just to go back here than to go search for another rock.
+         ;;4)If the robot is not using site fidelity
+         if not usingSiteFidelity?
+         [
+           ;;5) Here you'll combine an if statement, count, and in-radius 2 to check if there are
+           ;;2 or more patches in-radius 2 that have a pcolor of yellow.
+           if count neighbors in-radius 2 with [ pcolor = yellow ] > 1
+           [
+            ;;6) Then set usingSiteFidelity to true, and record the x and y coordinates of the patch
+            ;;where the robot is at now. We do this so that the robot knows where to return to.
+            set usingSiteFidelity? true
+            set siteFidelityX pxcor
+            set siteFidelityY pycor
+            ];;end if
+         ];;end if
+       ];;end if
+ end
+
+ ;------------------------------------------------------------------------------------
+ ;;;;;;;;;;;;;;;;;;;;
+ ;; return-to-base ;;
+ ;;;;;;;;;;;;;;;;;;;;
+
+ to go-home
+
+ ;;reset label
+ set label ""
+
+   ;;If the patch color is green, we found the base.
+   ifelse pcolor = green
+   [
+     set shape "robot";;Change the robot's shape to the one without the rock.
+     ;;1) Turn off returning mode.
+     set returning? false
+
+
+     ;;1)If the robot is not already using site fidelity, it can check if there are any
+     ;;pheromone trials to follow.
+     if not usingSiteFidelity?
+     [
+       ;;2)Use an if statement, count and in-radius again. This time, the radius will be 10. Check if the number of
+       ;;patches with the color cyan is greater than zero. The cyan colored patch indicates a trail.
+       if count neighbors in-radius 10 with [ pcolor = cyan ] > 0
+       [
+         ;;3) set the robot's label to "pheromone"
+         set label"pheromone"
+
+         ;;4) set usingPheromone to true.
+         set usingPheromone? true
+
+         ;;5) We want to head towards the closest trail. Combine face, one-of neighbors, the same radius as in 1),
+         ;;with the correct pcolor, and the statement "with-min[distance-myself]" to make the robot face the closest
+         ;;trail.
+         face one-of neighbors in-radius 10 with [pcolor = cyan] with-min[distance myself]
+       ]
+     ]
+     ;;2)if we're not usingSiteFidelity and we're not usingPheromone, set searching to true.
+     if not usingSiteFidelity? and not usingPheromone?[set searching? true]
+  ];;end if
+  ;;start else
+  [
+    ;;We haven't found the base yet. Face the base.
+    facexy 0 0
+
+    ;;1) If we're usingSiteFidelity or usingPheromone,
+    if usingsiteFidelity? or usingPheromone?
+    [
+     ;;Ask the patch-here to
+      ask patch-here
+      [
+       ;;2) Set its pheromoneCounter to the value we chose in the slider maxPheromone
+       ;;to mark this patch as part of the trail. If the pcolor is not yellow, set the pcolor to cyan.
+       ;;We have to check for a yellow patch because a yellow patch is a rock.
+       ;;We don't want to knock out a rock.
+       set pheromoneCounter maxPheromone
+       if pcolor != yellow [set pcolor cyan]
+       ]
+     ]
+   ]
+
+ end
+
+ ;------------------------------------------------------------------------------------
+ ;;;;;;;;;;;;;;;;;;;;;;;
+ ;; go-back-to-rocks  ;;
+ ;;;;;;;;;;;;;;;;;;;;;;;
+
+ to go-back-to-rocks
+
+   ;;reset label
+   set label "site fidelity"
+
+   ;;This section is similar to move-to-friend from Mars Robot 2.
+   ;;1) Use an ifelse statement. Determine if we've arrived back at where we found rocks before by
+   ;;checking if siteFidelityX and siteFidelityY are the same as thecurrent location.
+   ifelse siteFidelityX = pxcor and siteFidelityY = pycor
+   [
+     ;;2)If so, set searching to true. Then set usingSiteFidelity to false. We don't need it anymore.
+     set searching? true
+     set usingSiteFidelity? false
+   ]
+   ;;3) else we're not at the destination. Face the destination.
+   [facexy siteFidelityX siteFidelityY]
+
+ end
+
+ ;------------------------------------------------------------------------------------
+ ;;;;;;;;;;;;;;;;;;;;;;
+ ;; follow-the-trail ;;
+ ;;;;;;;;;;;;;;;;;;;;;;
+ to follow-the-trail
+   set label"pheromone"
+
+   ;;1) The robot located a trail when it was at the base. Now it have to follow it.
+   ;;But the trail evaporates, so the robot must make sure the trail still exists.
+   ;;Use the same statement as in return-to-base to make sure the trail is still there.
+   ;;But this time, make it an ifelse statement.
+   ifelse count neighbors in-radius 10 with [pcolor = cyan]> 0[
+
+     ;2) The robot chooses a target patch that is on the trail. We have to choose a patch that's in-radius 10,
+     ;;that has a pcolor of cyan, with-max distancexy from the origin, and with-min distancexy from myself.
+     let target one-of neighbors in-radius 10 with [pcolor = cyan] with-max[distancexy 0 0] with-min[distance myself]
+
+     ;;3) If the trail is already evaporating, the end of the trail might be closer to the origin than
+     ;;the robot is. If this is the case, the robot shouldn't follow, as it will go right back to the base.
+     ;;Use an ifelse statement. Check that the distancexy of the robot's target position from the origin
+     ;; is greater than the distancexy from the origin of self.
+     ifelse [distancexy 0 0] of target > [distancexy 0 0]of self
+     ;;4)If so, face the target.
+     [face target]
+     ;;else, the robot should not follow the trail anymore.
+     ;;Set usingPheromone to false and searching to true.
+     [
+       set usingPheromone? false
+       set searching? true
+     ]
+   ];;end if
+   ;;begin else
+   ;;5) There wasn't a trail within 10 patches of our location. It must have evaporated.
+   [
+     ;;set usingPheromone to false and set searching to true.
+     set usingPheromone? false
+     set searching? true
+   ]
+
+end

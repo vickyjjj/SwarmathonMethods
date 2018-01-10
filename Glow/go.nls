@@ -1,0 +1,171 @@
+to go
+
+  ; if all of the tags are collected, stop the model
+  ifelse numTags = 0
+  [
+    set finished? true
+    ask turtles 
+    [
+      if returned?
+      [
+        set shape "robot"
+        return-to-base
+      ]
+      ifelse pen-down?
+      [ pen-down ]
+      [ pen-up ]
+    ]
+    
+    if robotsHome = 0
+    [
+      clear-drawing
+      stop
+    ]
+  ]
+  [
+    ask turtles
+    [
+      ifelse pen-down?
+      [ pen-down ]
+      [ pen-up ]
+      
+      if searching?
+      [ search ]
+      
+      if returning?
+      [ return-to-base ]
+      
+      if recruiting?
+      [ call-friends ]
+      
+      if recruited?
+      [ go-to-friend ]
+    ]
+  ]
+
+  tick
+
+end
+
+;;;;;;;;;;;;;;;;;;
+;;CHECK FOR TAGS;;
+;;;;;;;;;;;;;;;;;;
+
+to check-for-tags
+
+    if count neighbors in-radius 2 with [ pcolor = blue ] > 0
+    [
+      if searching?
+      [
+        ask one-of neighbors in-radius 2 with [ pcolor = blue ]
+        [ set pcolor base-pcolor ]
+        set shape "robot with rock"
+        set searching? false
+        let isRecruiting? false
+        let isReturning? false
+        ask patches in-radius 1
+        [
+          ifelse pcolor = blue
+          [ set isRecruiting? true ]
+          [ set isReturning? true ]
+        ]
+        set recruiting? isRecruiting?
+        set returning? isReturning? 
+        
+        set recruitingRadius (count patches in-radius 10 with [pcolor = blue] * 30)
+      ]
+    ]
+
+end
+
+;;;;;;;;;;
+;;SEARCH;;
+;;;;;;;;;;
+
+to search
+
+  ifelse (pxcor = min-pxcor) or (pxcor = max-pxcor) or 
+         (pycor = min-pycor) or (pycor = max-pycor)
+  [
+    ;;set searching? false
+    ;;set returning? true
+    facexy 0 0
+    forward travel-distance 
+  ]
+  [
+    check-for-tags
+    forward travel-distance
+    left random (turn-angle + 1)
+    right random (turn-angle + 1)
+  ]
+
+end
+
+;;;;;;;;;;;;;;;;;;
+;;RETURN TO BASE;;
+;;;;;;;;;;;;;;;;;;
+
+to return-to-base
+  
+  ifelse count neighbors in-radius 2 with [ pcolor = green ] > 0 and
+         distancexy 0 0 < 1.5
+  [
+    ifelse finished? and returned?
+    [ 
+      set returned? false
+      set robotsHome (robotsHome - 1)
+    ]
+    [
+      set numTags (numTags - 1)
+      set shape "robot"
+      set searching? true
+      set returning? false
+    ]
+  ]
+  [
+    facexy 0 0
+    forward travel-distance
+  ]
+
+end
+
+;;;;;;;;;;;;;;;;
+;;CALL FRIENDS;;
+;;;;;;;;;;;;;;;;
+
+to call-friends
+  let rockX pxcor
+  let rockY pycor
+  
+  ask turtles in-radius recruitingRadius
+  [
+    if searching?
+    [
+      set searching? false
+      set recruited? true
+      
+      set targetX rockX
+      set targetY rockY
+    ]
+  ]
+  set recruiting? false
+  set returning? true
+end
+
+;;;;;;;;;;;;;;;;
+;;GO TO FRIEND;;
+;;;;;;;;;;;;;;;;
+
+to go-to-friend
+  set label "recruited"
+  ifelse targetX = pxcor and targetY = pycor
+  [
+    set searching? true
+    set recruited? false
+    set label ""
+  ]
+  [ 
+    facexy targetX targetY 
+    forward travel-distance
+  ]
+end

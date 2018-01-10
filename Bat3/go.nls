@@ -1,0 +1,316 @@
+to go
+
+  ; if all of the tags are collected, stop the model
+  ifelse numTags = 0
+  [
+    set finished? true
+    ask turtles 
+    [
+      if returned?
+      [
+        set shape "robot"
+        return-to-base
+      ]
+      ifelse pen-down?
+      [ pen-down ]
+      [ pen-up ]
+    ]
+    
+    if robotsHome = 0
+    [
+      clear-drawing
+      set numTicks1 ticks
+      resettags
+    ]
+  ]
+  [
+    ask turtles
+    [
+      ifelse pen-down?
+      [ pen-down ]
+      [ pen-up ]
+
+      if searching?
+      [ search ]
+      
+      if returning?
+      [ return-to-base ]
+      
+      if recruiting?
+      [ call-friends ]
+      
+      if recruited?
+      [ go-to-friend ]
+    ]
+  ]
+
+  tick
+
+end
+
+;;;;;;;;;;;;;;;;;;
+;;CHECK FOR TAGS;;
+;;;;;;;;;;;;;;;;;;
+
+to check-for-tags
+
+    if count neighbors in-radius 2 with [ pcolor = blue ] > 0
+    [
+      if searching?
+      [
+        ask one-of neighbors in-radius 2 with [ pcolor = blue ]
+        [ set pcolor base-pcolor ]
+        set shape "robot with rock"
+        set searching? false
+        
+        if not walkBack? and not recruited?
+        [
+          if worth <= 0
+          [
+            set pathX pxcor
+            set pathY pycor
+            set pathDir heading
+          ]
+        ]
+        
+        let isRecruiting? false
+        let isReturning? false
+        
+        ifelse count patches in-radius 10 with [ pcolor = blue ] > 6
+        [ set isRecruiting? true ]
+        [ set isReturning? true ]
+        
+        set recruiting? isRecruiting?
+        set returning? isReturning? 
+        
+        if recruiting? 
+        [
+          set worth 80
+          set reached? false
+          set targetX pxcor
+          set targetY pycor
+        ] 
+      ]
+    ]
+
+end
+
+;;;;;;;;;;
+;;SEARCH;;
+;;;;;;;;;;
+
+to search
+
+  let xvals pxcor = min-pxcor + 1 or pxcor = max-pxcor - 1
+  let yvals pycor = min-pycor + 1 or pycor = max-pycor - 1
+  let corner xvals or yvals
+  ifelse (corner and abuse?)
+  [
+    ifelse (xvals and yvals)
+    [ 
+      ;;robot is hitting the wall in initial setup, fix
+      set first? false
+      left 45
+      set abuse? false
+    ] 
+    [ 
+      if step-count < 0
+      [ facexy 0 0 ] ;;
+    ]
+    forward travel-distance
+  ]
+  [
+    if not beginning? [ check-for-tags ] ;;robot can check for tags if not engaged in initial setup
+    forward travel-distance
+
+    ifelse reached? 
+    [
+      if worth > 0
+      [
+        ifelse distancexy targetX targetY > 20 ;;robot should be engaging in heightened randomized search near cluster area, but is going out of range
+        [
+          set abuse? true
+          faceXY targetX targetY
+        ]
+        [
+          ;;robot should be engaging in heightened randomized search near cluster area, is in range
+          set abuse? true
+          left random 20
+          right random 20
+        ]
+        set worth (worth - 1)
+        if worth = 0 
+        [ 
+          ;;robot should no longer be engaging in heightened randomized search near cluster area; return to path
+          set cluster? false
+          set abuse? false
+          set reached? false
+          set walkBack? true
+        ]
+      ]
+    ]
+    [
+      ifelse worth > 0
+      [
+        ifelse targetX = pxcor and targetY = pycor
+        [ set reached? true ] ;;robot has arrived at cluster, will now begin to do heightened randomized search
+        [ facexy targetX targetY ] ;;robot has not arrived at cluster yet, is heading there
+      ]
+      [
+        turning 
+      ]
+    ]
+  ]
+
+end
+
+;;;;;;;;;;;;;;;;;;
+;;RETURN TO BASE;;
+;;;;;;;;;;;;;;;;;;
+
+to return-to-base
+  
+  ifelse count neighbors in-radius 2 with [ pcolor = green ] > 0 and
+         distancexy 0 0 < 1.5
+  [
+    ifelse finished? and returned?
+    [ 
+      set returned? false
+      set robotsHome (robotsHome - 1)
+    ]
+    [
+      set numTags (numTags - 1)
+      set shape "robot"
+      set returning? false
+      if not cluster? [ set walkBack? true ]
+      if worth > 0
+      [ set reached? false ]
+      set searching? true
+    ]
+  ]
+  [
+    face-origin
+    forward travel-distance
+  ]
+
+end
+
+;;;;;;;;;;;;;;;;
+;;CALL FRIENDS;;
+;;;;;;;;;;;;;;;;
+
+to call-friends
+  let rockX pxcor
+  let rockY pycor
+  
+  ask turtles in-radius 300
+  [
+    if searching?
+    [
+      set searching? false
+      set recruited? true
+      set reached? false
+      set cluster? true
+      
+      set targetX rockX
+      set targetY rockY
+      
+      if worth <= 0 and (not walkBack? and not recruited?)
+      [ 
+        set pathX pxcor
+        set pathY pycor
+        set pathdir heading
+      ]
+    ]
+  ]
+  set recruiting? false
+  set returning? true
+end
+
+;;;;;;;;;;;;;;;;
+;;GO TO FRIEND;;
+;;;;;;;;;;;;;;;;
+
+to go-to-friend
+  if not first?
+  [
+    if not (worth > 0) and not walkBack?
+    [ 
+      set pathX pxcor
+      set pathY pycor
+      set pathDir heading
+    ]
+    set label "recruited"
+    set cluster? true
+    ifelse targetX = pxcor and targetY = pycor
+    [
+      set searching? true
+      set recruited? false
+      set reached? true
+      set label ""
+    ]
+    [ 
+      set worth 80
+      facexy targetX targetY 
+      forward travel-distance
+    ]
+  ]
+end
+
+;;;;;;;;;;;
+;;TURNING;;
+;;;;;;;;;;;
+
+to turning
+  ifelse walkBack?
+  [
+    ifelse beginning? 
+    [
+      set beginningSteps beginningSteps - 1
+      if beginningSteps <= 1
+      [ 
+        set beginning? false
+        set walkBack? false
+      ]
+    ]
+    [
+      ifelse pathX = pxcor and pathY = pycor
+      [ 
+        set walkBack? false
+        set heading pathDir
+      ]  
+      [ 
+        if pathX != 1000 and pathY != 1000
+        [ facexy pathX pathY ]
+      ]
+    ]
+  ]
+  [
+    ifelse step-count > 0
+    [
+      set step-count step-count - 1
+    ]
+    [
+      ifelse step-count = 0
+      [
+        if first?
+        [
+          set first? false
+          left 45
+        ]        
+        left 90
+        set max-step-count (max-step-count - 1)
+        set step-count max-step-count
+      ]
+      [
+        set abuse? true 
+        left random 20
+        right random 20
+      ]
+    ]
+  ]
+end
+
+to face-origin
+  facexy 0 0 
+end

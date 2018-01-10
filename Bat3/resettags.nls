@@ -1,0 +1,23 @@
+to resettags
+  no-display
+  ;clear-all
+  reset-ticks
+
+  bitmap:copy-to-pcolors bitmap:import "parkinglot.jpg" true
+  ask patches [ set base-pcolor pcolor ]
+
+  setup-tags
+  set numTags 256
+  
+  create-turtles number-of-robots
+  [
+    set searching? true
+    set returning? false
+    set usingSiteFidelity? false
+    set usingPheromone? false
+  ]
+
+  display
+  
+  go-pheromone
+end
