@@ -19,3 +19,35 @@ Requirements:
 * In the end, the pheromone method (not included; can be found in original module code) most consistently takes the fewest amount of steps. However, it takes the most processing time, and can also take time in reality for the time it takes the rovers to sense or lay down their "pheromones."
 
 ## Screenshots
+
+### Initial field setup
+<img src="https://github.com/vickyjjj/SwarmathonMethods/blob/master/screenshots/setup.png?raw=true">
+Setting: parking lot; blue = rock/tag to be picked up.
+
+### Control: Random movement
+<img src="https://github.com/vickyjjj/SwarmathonMethods/blob/master/screenshots/random.png?raw=true">
+Random method relies entirely on random movement.
+
+### Bat Method 1
+The first bat method allows rovers to send a signal to other rovers in the vicinity when they find a large patch of rocks to be picked up; other rovers who receive this signal will then swarm towards the area for a set number of steps to eradicate the patch before returning to their regular random movement. This is similar to how bats will send echolocation signals to fellow bats in the area when they find a large patch of prey to feast on together.
+<img src="https://github.com/vickyjjj/SwarmathonMethods/blob/master/screenshots/ogbatinit.png?raw=true">
+Initial movement lines.
+<img src="https://github.com/vickyjjj/SwarmathonMethods/blob/master/screenshots/ogbatfinal.png?raw=true">
+Final movement lines.
+
+### Bat Method 2
+The second bat method works like bat method 1, but instead of random movement, it implements a deterministic square search starting from the outermose square to the innermost square, before implementing random search when it reaches the smallest square path possible. The rovers are staggered so that they have different starting points in their squares.
+<img src="https://github.com/vickyjjj/SwarmathonMethods/blob/master/screenshots/bat2init.png?raw=true">
+Initial movement lines.
+<img src="https://github.com/vickyjjj/SwarmathonMethods/blob/master/screenshots/bat2final.png?raw=true">
+Final movement lines.
+
+### Bat Method 3
+The third bat method was written to compare the pheromone method and bat method 2. While bat method 2 could occasionally outperform the pheromone method in the number of ticks it used, the pheromone method more consistently reached numbers of the upper 9,000s, while bat method 2 would often get numbers in the 10,000s rather than the 9,000s.
+
+### Glowworm method
+The glowworm method works similarly to the bat method but implements some scales accounting for distance and amount of rocks in a single patch. Its result is similar to the bat method and showed no significant improvement from the bat method, so it was ignored.
+<img src="https://github.com/vickyjjj/SwarmathonMethods/blob/master/screenshots/glowinit.png?raw=true">
+Initial movement lines.
+<img src="https://github.com/vickyjjj/SwarmathonMethods/blob/master/screenshots/glowfinal.png?raw=true">
+Final movement lines.
